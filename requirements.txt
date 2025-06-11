@@ -1,0 +1,9 @@
+tensorflow_hub==0.10.0
+tensorflow_text==2.5.0
+tensorflow==2.5.0
+cffi==1.17.1
+numpy<=1.23.5
+pycparser==2.22
+torch==1.7.1
+tqdm==4.67.1
+typing_extensions
