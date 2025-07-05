@@ -4,34 +4,53 @@ import tensorflow_hub as hub
 import tensorflow_text as tf_text
 
 tf.compat.v1.disable_eager_execution()
+tf.disable_eager_execution()
 
 
-text_generator = hub.Module('https://www.kaggle.com/models/google/bertseq2seq/TensorFlow1/roberta24-bbc/1')
+URL_HUB = "https://www.kaggle.com/models/google/bertseq2seq/TensorFlow1/roberta24-bbc/1"
+module = hub.Module(URL_HUB)
+# Define placeholders
+input_ids = tf.placeholder(tf.int32, [None, None], name="input_ids")
+input_mask = tf.placeholder(tf.int32, [None, None], name="input_mask")
+segment_ids = tf.placeholder(tf.int32, [None, None], name="segment_ids")
 
-input_text_bbc = """The Dung Beetle UK Mapping Project (Dump) is still in the early stages of its research work, which has included examining beetle sites in Scotland.
-However, the team said it had already noted an "alarming trend" of decline of some species.
-Dung beetles play key roles in improving soils and controlling pests.
-Reasons for the decline in some beetle species include coming into contact with anthelmintics, a type of drug given to livestock to control intestinal worms that prevent the farm animals from thriving.
-Dump involves Darren Mann, who is head of life collections at the Oxford University Museum of Natural History, Steve Lane, Ceri Watkins and Sally-Ann Spence.
-The project is not funded and the team members have been doing their research in their spare time, while on family holidays and fitting it around their other work.
-The scientists have been examining well-documented dung beetle sites, including locations in the Cairngorms, and have also been looking for the insects in previously unrecorded places.
-They hope to enlist the help of organisations that record flora and fauna and also wildlife enthusiasts, whose attention is being drawn to Dump via social media. On Twitter the project has the hashtags #dungathon and #dungisfun.
-Ms Spence said some of Dump's early results had given cause for concern.
-She said: "Our results mapping the dung beetle species in the UK, although the project is in its youth, are already showing an alarming trend in species rarity and even extinction.
-"The three main reasons behind this are considered to be the use of anthelmintics, soil disturbance and the disappearance of livestock from historic pastures due to a change in farming practices."
-It has been suggested that dung beetles save the UK's cattle industry an estimated <C3><82><C2><A3>367m a year, Ms Spence said.
-They do this by encouraging the growth of healthy grass through their burrowing in soil, which aerates it and allows rainwater and nutrients into the ground.
-Dung beetles also eat animal droppings harbouring parasites harmful to livestock.
-Ms Spence said: "We take the opportunity of our survey visits to make farmers and livestock keepers aware of their dung beetles, the latest research, their economic benefits and how they might implement simple workable measures ensure a healthy dung beetle population.
-"We have received a fantastically positive response from all we have spoken to.
-"Farmers are keen to preserve their dung beetles and we intend to gather more data about species and their population frequencies to enable more research into these incredibly important beetles."
-As well as their importance to agriculture, the beetles and their grubs are food for wild birds and mammals.
-Scotland has the UK strongholds for at least three species of dung beetle - Aphodius fasciatus, Aphodius lapponum and Aphodius nemoralis.
-The Cairngorms and the Western Isles are among the best recorded areas for the creatures, but large parts of the rest of Scotland remain unrecorded.
-Ms Spence said: "The project is vast.
-"Different species live in, or under, different dung in different stages of decomposition on different soils at different altitudes at different times of the year.
-"Dung quality is important too. We have become connoisseurs of fine dung. Not adverse to feeling the texture or giving it a good sniff - you can tell a lot about an animals health by its dung - we will examine it meticulously for beetles."
-The end result will be a dataset of dung beetle information, including identification, distribution maps, ecology and species conservation status. This will be made available via The British Beetles website and will include an online recording system using Irecord."""
+inputs = {
+    "input_ids": input_ids,
+    "input_mask": input_mask,
+    "segment_ids": segment_ids,
+}
+
+# Get all outputs using the correct signature
+outputs = module(inputs, signature="tokens", as_dict=True)
+
+tf.saved_model.simple_save(sess, "./tfhub_export", inputs=inputs, outputs=outputs)    
+
+
+# 
+
+# exporting the model
+bert_layer = hub.KerasLayer(URL_HUB, trainable=False)
+# Dummy wrapper model with input signature matching BERT
+input_word_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32, name="input_word_ids")
+input_mask = tf.keras.layers.Input(shape=(None,), dtype=tf.int32, name="input_mask")
+input_type_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32, name="input_type_ids")
+bert_outputs = bert_layer({
+    "input_word_ids": input_word_ids,
+    "input_mask": input_mask,
+    "input_type_ids": input_type_ids
+})
+
+model = tf.keras.Model(
+    inputs=[input_word_ids, input_mask, input_type_ids],
+    outputs=bert_outputs
+)
+
+print(bert_layer, model)
+print()
+raise Exception()
+
+# the document id = 34687720
+input_text_bbc = """France\'s Dubuisson carded a 67 to tie with overnight leader Van Zyl of South Africa on 16 under par.\nMcIlroy carded a third straight five under-par 67 to move to 15 under par with Thailand\'s Kiradech Aphibarnrat.\nThe world number three\'s round included an eagle on the 12th as he bids to win his first title since May.\n"The 67s I\'ve shot this week have all been a little different and I feel like I\'ve played within myself for all of them, " said four-time major winner McIlroy of Northern Ireland. "I feel there\'s a low round out there for me and hopefully it\'s tomorrow."\nMcIlroy was level par for the day after 10 holes, dropping his first shots of the week by three-putting the third and 10th, the latter mistake prompting the 26-year-old to throw his putter at his bag.\nBut he hit back with a birdie on the par-five 11th and a towering four iron from 229 yards on the 13th set up an eagle from just four feet.\nThe former world number one ruptured a ligament in his left ankle during a game of football with friends in July, ruling him out of several tournaments.\nBut he returned in time to unsuccessfully defend his US PGA title at Whistling Straits in August and played in three of the FedEx Cup play-off events before starting the new PGA Tour season with a tie for 26th in the Frys.com Open in California.\nHe is targeting a third Race to Dubai title in four years and leads England\'s Danny Willett by 271, 214 points with three events remaining after the Turkish Open.\nEnglish pair Chris Wood (-13) and Richard Bland (-12) who were tied for second overnight are fifth and seventh respectively."""
 
 input_documents = [input_text_bbc]
 output_summaries = text_generator(input_documents)
